@@ -11,7 +11,7 @@ import (
 	"github.com/ava-labs/avalanchego/utils/crypto/bls"
 	"github.com/ava-labs/avalanchego/utils/formatting"
 	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
-	coreth_params "github.com/ava-labs/coreth/params"
+	coreth_params "github.com/cryft-labs/coreth/params"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 	"github.com/ava-labs/avalanchego/indexer"
 	"github.com/ava-labs/avalanchego/vms/avm"
 	"github.com/ava-labs/avalanchego/vms/platformvm"
-	"github.com/ava-labs/coreth/plugin/evm"
+	"github.com/cryft-labs/coreth/plugin/evm"
 )
 
 // Issues API calls to a node
