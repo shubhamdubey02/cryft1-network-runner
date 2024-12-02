@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/network/peer"
-	"github.com/ava-labs/avalanchego/snow/networking/router"
+	"github.com/cryft-labs/cryftgo/config"
+	"github.com/cryft-labs/cryftgo/ids"
+	"github.com/cryft-labs/cryftgo/network/peer"
+	"github.com/cryft-labs/cryftgo/snow/networking/router"
 	"github.com/shubhamdubey02/cryft1-network-runner/api"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node/status"
 )

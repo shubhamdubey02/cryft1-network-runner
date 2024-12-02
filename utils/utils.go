@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/utils/beacon"
-	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/cryft-labs/cryftgo/ids"
+	"github.com/cryft-labs/cryftgo/staking"
+	"github.com/cryft-labs/cryftgo/utils/beacon"
+	"github.com/cryft-labs/cryftgo/utils/constants"
+	"github.com/cryft-labs/cryftgo/utils/logging"
 	rpcb "github.com/shubhamdubey02/cryft1-network-runner/rpcpb"
 	"github.com/shubhamdubey02/cryft1-network-runner/ux"
 )

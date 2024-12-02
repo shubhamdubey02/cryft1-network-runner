@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ava-labs/avalanchego/config"
-	"github.com/ava-labs/avalanchego/staking"
-	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/cryft-labs/cryftgo/config"
+	"github.com/cryft-labs/cryftgo/staking"
+	"github.com/cryft-labs/cryftgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/local"
 	"github.com/shubhamdubey02/cryft1-network-runner/network"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
@@ -64,7 +64,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/ava-labs/avalanchego/build/avalanchego")
+	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/cryft-labs/cryftgo/build/avalanchego")
 	if err := run(log, binaryPath); err != nil {
 		log.Fatal("fatal error", zap.Error(err))
 		os.Exit(1)

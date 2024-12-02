@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ava-labs/avalanchego/upgrade"
-	"github.com/ava-labs/avalanchego/utils/crypto/bls"
-	"github.com/ava-labs/avalanchego/utils/formatting"
-	"github.com/ava-labs/avalanchego/vms/platformvm/signer"
 	coreth_params "github.com/cryft-labs/coreth/params"
+	"github.com/cryft-labs/cryftgo/upgrade"
+	"github.com/cryft-labs/cryftgo/utils/crypto/bls"
+	"github.com/cryft-labs/cryftgo/utils/formatting"
+	"github.com/cryft-labs/cryftgo/vms/platformvm/signer"
 )
 
 const (

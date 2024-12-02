@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ava-labs/avalanchego/genesis"
-	"github.com/ava-labs/avalanchego/ids"
-	"github.com/ava-labs/avalanchego/utils/constants"
-	"github.com/ava-labs/avalanchego/utils/formatting/address"
-	"github.com/ava-labs/avalanchego/utils/units"
+	"github.com/cryft-labs/cryftgo/genesis"
+	"github.com/cryft-labs/cryftgo/ids"
+	"github.com/cryft-labs/cryftgo/utils/constants"
+	"github.com/cryft-labs/cryftgo/utils/formatting/address"
+	"github.com/cryft-labs/cryftgo/utils/units"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils"
 )

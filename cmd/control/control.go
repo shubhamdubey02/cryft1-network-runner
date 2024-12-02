@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/cryft-labs/cryftgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/client"
 	"github.com/shubhamdubey02/cryft1-network-runner/rpcpb"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils"
@@ -24,7 +24,7 @@ import (
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
-	avagoConstants "github.com/ava-labs/avalanchego/utils/constants"
+	avagoConstants "github.com/cryft-labs/cryftgo/utils/constants"
 )
 
 func init() {

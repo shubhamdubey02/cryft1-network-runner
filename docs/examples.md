@@ -359,7 +359,7 @@ node99
 To pause a node (in this case, node named `node99`):
 
 ```sh
-# e.g., ${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego
+# e.g., ${HOME}/go/src/github.com/cryft-labs/cryftgo/build/avalanchego
 
 curl -X POST -k http://localhost:8081/v1/control/pausenode -d '{"name":"node99","logLevel":"INFO"}'
 
@@ -399,7 +399,7 @@ You can also provide additional flags that specify the node's config:
 ## Interacting with the test peers
 
 AvalancheGo exposes a "test peer", which you can attach to a node.
-(See [here](https://github.com/ava-labs/avalanchego/blob/master/network/peer/test_peer.go) for more information.)
+(See [here](https://github.com/cryft-labs/cryftgo/blob/master/network/peer/test_peer.go) for more information.)
 You can send messages through the test peer to the node it is attached to.
 
 To attach a test peer to a node (in this case, `node1`):

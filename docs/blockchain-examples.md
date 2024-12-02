@@ -5,8 +5,8 @@
 To start the server:
 
 ```sh
-export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
-export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
+export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/cryft-labs/cryftgo/build/avalanchego"
+export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/cryft-labs/cryftgo/build/plugins"
 
 avalanche-network-runner server \
 --log-level debug \
@@ -26,20 +26,20 @@ go install -v .
 subnet-cli create VMID subnetevm
 # srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy
 
-# download from https://github.com/ava-labs/avalanchego/releases
+# download from https://github.com/cryft-labs/cryftgo/releases
 # or build
-rm -rf ${HOME}/go/src/github.com/ava-labs/avalanchego/build
-cd ${HOME}/go/src/github.com/ava-labs/avalanchego
+rm -rf ${HOME}/go/src/github.com/cryft-labs/cryftgo/build
+cd ${HOME}/go/src/github.com/cryft-labs/cryftgo
 ./scripts/build.sh
 
 # ref. https://github.com/ava-labs/subnet-evm/blob/b69e47e0398b5237cda0422f6a32969e64bde346/scripts/run.sh
 cd ${HOME}/go/src/github.com/ava-labs/subnet-evm
 go build -v \
--o ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy \
+-o ${HOME}/go/src/github.com/cryft-labs/cryftgo/build/plugins/srEXiWaHuhNyGwPUi444Tu47ZEDwxTWrbQiuD7FmgSAQ6X7Dy \
 ./plugin
 
 # make sure binaries are built
-find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+find ${HOME}/go/src/github.com/cryft-labs/cryftgo/build
 # for example
 # .../build
 # .../build/plugins
@@ -128,8 +128,8 @@ avalanche-network-runner control start \
 To start the server:
 
 ```sh
-export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
-export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
+export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/cryft-labs/cryftgo/build/avalanchego"
+export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/cryft-labs/cryftgo/build/plugins"
 
 avalanche-network-runner server \
 --log-level debug \
@@ -149,19 +149,19 @@ go install -v .
 subnet-cli create VMID blobvm
 # kM6h4LYe3AcEU1MB2UNg6ubzAiDAALZzpVrbX8zn3hXF6Avd8
 
-# download from https://github.com/ava-labs/avalanchego/releases
+# download from https://github.com/cryft-labs/cryftgo/releases
 # or build
-rm -rf ${HOME}/go/src/github.com/ava-labs/avalanchego/build
-cd ${HOME}/go/src/github.com/ava-labs/avalanchego
+rm -rf ${HOME}/go/src/github.com/cryft-labs/cryftgo/build
+cd ${HOME}/go/src/github.com/cryft-labs/cryftgo
 ./scripts/build.sh
 
 cd ${HOME}/go/src/github.com/ava-labs/blobvm
 go build -v \
--o ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins/kM6h4LYe3AcEU1MB2UNg6ubzAiDAALZzpVrbX8zn3hXF6Avd8 \
+-o ${HOME}/go/src/github.com/cryft-labs/cryftgo/build/plugins/kM6h4LYe3AcEU1MB2UNg6ubzAiDAALZzpVrbX8zn3hXF6Avd8 \
 ./cmd/blobvm
 
 # make sure binaries are built
-find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+find ${HOME}/go/src/github.com/cryft-labs/cryftgo/build
 # for example
 # .../build
 # .../build/plugins
@@ -209,8 +209,8 @@ avalanche-network-runner control start \
 To start the server:
 
 ```sh
-export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/avalanchego"
-export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins"
+export AVALANCHEGO_EXEC_PATH="${HOME}/go/src/github.com/cryft-labs/cryftgo/build/avalanchego"
+export AVALANCHEGO_PLUGIN_PATH="${HOME}/go/src/github.com/cryft-labs/cryftgo/build/plugins"
 
 avalanche-network-runner server \
 --log-level debug \
@@ -230,10 +230,10 @@ go install -v .
 subnet-cli create VMID timestampvm
 # tGas3T58KzdjcJ2iKSyiYsWiqYctRXaPTqBCA11BqEkNg8kPc
 
-# download from https://github.com/ava-labs/avalanchego/releases
+# download from https://github.com/cryft-labs/cryftgo/releases
 # or build
-rm -rf ${HOME}/go/src/github.com/ava-labs/avalanchego/build
-cd ${HOME}/go/src/github.com/ava-labs/avalanchego
+rm -rf ${HOME}/go/src/github.com/cryft-labs/cryftgo/build
+cd ${HOME}/go/src/github.com/cryft-labs/cryftgo
 ./scripts/build.sh
 
 # or download from https://github.com/ava-labs/timestampvm/releases
@@ -241,11 +241,11 @@ cd ${HOME}/go/src/github.com/ava-labs/avalanchego
 # ./scripts/build.sh
 cd ${HOME}/go/src/github.com/ava-labs/timestampvm
 go build -v \
--o ${HOME}/go/src/github.com/ava-labs/avalanchego/build/plugins/tGas3T58KzdjcJ2iKSyiYsWiqYctRXaPTqBCA11BqEkNg8kPc \
+-o ${HOME}/go/src/github.com/cryft-labs/cryftgo/build/plugins/tGas3T58KzdjcJ2iKSyiYsWiqYctRXaPTqBCA11BqEkNg8kPc \
 ./main
 
 # make sure binaries are built
-find ${HOME}/go/src/github.com/ava-labs/avalanchego/build
+find ${HOME}/go/src/github.com/cryft-labs/cryftgo/build
 # for example
 # .../build
 # .../build/plugins

@@ -1,14 +1,14 @@
 package api
 
 import (
-	"github.com/ava-labs/avalanchego/api/admin"
-	"github.com/ava-labs/avalanchego/api/health"
-	"github.com/ava-labs/avalanchego/api/info"
-	"github.com/ava-labs/avalanchego/api/keystore"
-	"github.com/ava-labs/avalanchego/indexer"
-	"github.com/ava-labs/avalanchego/vms/avm"
-	"github.com/ava-labs/avalanchego/vms/platformvm"
 	"github.com/cryft-labs/coreth/plugin/evm"
+	"github.com/cryft-labs/cryftgo/api/admin"
+	"github.com/cryft-labs/cryftgo/api/health"
+	"github.com/cryft-labs/cryftgo/api/info"
+	"github.com/cryft-labs/cryftgo/api/keystore"
+	"github.com/cryft-labs/cryftgo/indexer"
+	"github.com/cryft-labs/cryftgo/vms/avm"
+	"github.com/cryft-labs/cryftgo/vms/platformvm"
 )
 
 // Issues API calls to a node

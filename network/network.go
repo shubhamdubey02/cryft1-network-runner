@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/ava-labs/avalanchego/ids"
+	"github.com/cryft-labs/cryftgo/ids"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
 )
 

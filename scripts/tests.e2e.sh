@@ -61,7 +61,7 @@ AVALANCHEGO_REPO=/tmp/avalanchego-repo/
 
 if [ ! -d $AVALANCHEGO_REPO ]
 then
-    git clone https://github.com/ava-labs/avalanchego/ $AVALANCHEGO_REPO
+    git clone https://github.com/cryft-labs/cryftgo/ $AVALANCHEGO_REPO
 fi
 
 VERSION_1_DIR=/tmp/avalanchego-${VERSION_1}/

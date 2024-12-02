@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ava-labs/avalanchego/utils/logging"
+	"github.com/cryft-labs/cryftgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/rpcpb"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils/constants"
 	"go.uber.org/zap"
