@@ -3,7 +3,7 @@ module github.com/shubhamdubey02/cryft1-network-runner
 go 1.22.8
 
 require (
-	github.com/ava-labs/coreth v0.13.9-rc.1
+	github.com/ava-labs/coreth v0.12.5
 	// github.com/cryft-labs/cryftgo v1.0.0-rc
 	github.com/ethereum/go-ethereum v1.13.14
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
