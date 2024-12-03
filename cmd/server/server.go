@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/server"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils/constants"
@@ -39,7 +39,7 @@ var (
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "server [options]",
-		Short: "Starts a network runner server.",
+		Short: "Start a network runner server.",
 		RunE:  serverFunc,
 		Args:  cobra.ExactArgs(0),
 	}

@@ -24,8 +24,3 @@ bin/
 # ignore GoLand metafiles directory
 .idea/
 *.iml
-
-# Ignore Markdown linting configuration for VSCode
-.markdownlint.json
-
-build/

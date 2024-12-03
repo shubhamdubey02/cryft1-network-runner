@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/client"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils/constants"
 	"github.com/shubhamdubey02/cryft1-network-runner/ux"
@@ -24,12 +24,12 @@ var (
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ping [options]",
-		Short: "Pings the server.",
+		Short: "Ping the server.",
 		RunE:  pingFunc,
 	}
 
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logging.Info.String(), "log level")
-	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "localhost:8080", "server endpoint")
+	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "0.0.0.0:8080", "server endpoint")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
 	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 10*time.Second, "client request timeout")
 

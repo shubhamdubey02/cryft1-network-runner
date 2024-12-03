@@ -6,10 +6,10 @@ import (
 	"math/big"
 	"sync"
 
-	"github.com/cryft-labs/coreth/core/types"
-	"github.com/cryft-labs/coreth/ethclient"
-	"github.com/cryft-labs/coreth/interfaces"
-	"github.com/cryft-labs/cryftgo/ids"
+	"github.com/MetalBlockchain/coreth/core/types"
+	"github.com/MetalBlockchain/coreth/ethclient"
+	"github.com/MetalBlockchain/coreth/interfaces"
+	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -51,7 +51,7 @@ type ethClient struct {
 
 // NewEthClient mainly takes ip/port info for usage in future calls
 // Connection can't be initialized in constructor because node is not ready when the constructor is called
-// It follows convention of most avalanchego api constructors that can be called without having a ready node
+// It follows convention of most metalgo api constructors that can be called without having a ready node
 func NewEthClient(ipAddr string, port uint) EthClient {
 	// default to using the C chain
 	return NewEthClientWithChainID(ipAddr, port, "C")

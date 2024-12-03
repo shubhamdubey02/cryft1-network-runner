@@ -7,23 +7,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/netip"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/cryft-labs/cryftgo/config"
-	"github.com/cryft-labs/cryftgo/ids"
-	avago_constants "github.com/cryft-labs/cryftgo/utils/constants"
-	"github.com/cryft-labs/cryftgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/config"
+	"github.com/MetalBlockchain/metalgo/ids"
+	avago_constants "github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/local"
 	"github.com/shubhamdubey02/cryft1-network-runner/network"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
 	"github.com/shubhamdubey02/cryft1-network-runner/rpcpb"
-	"github.com/shubhamdubey02/cryft1-network-runner/utils"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils/constants"
 	"github.com/shubhamdubey02/cryft1-network-runner/ux"
 	"golang.org/x/exp/maps"
@@ -37,15 +34,15 @@ const (
 scrape_configs:
   - job_name: prometheus
     static_configs:
-      - targets:
+      - targets: 
         - localhost:9090
-  - job_name: avalanchego-machine
+  - job_name: metalgo-machine
     static_configs:
-     - targets:
+     - targets: 
        - localhost:9100
        labels:
          alias: machine
-  - job_name: avalanchego
+  - job_name: metalgo
     metrics_path: /ext/metrics
     static_configs:
       - targets:
@@ -55,8 +52,6 @@ scrape_configs:
 type localNetwork struct {
 	lock sync.Mutex
 	log  logging.Logger
-
-	networkID uint32
 
 	execPath  string
 	pluginDir string
@@ -90,7 +85,6 @@ type chainInfo struct {
 type localNetworkOptions struct {
 	execPath            string
 	rootDataDir         string
-	logRootDir          string
 	numNodes            uint32
 	trackSubnets        string
 	redirectNodesOutput bool
@@ -105,8 +99,6 @@ type localNetworkOptions struct {
 	upgradeConfigs map[string]string
 	// subnet configs to be added to the network, besides the ones in default config, or saved snapshot
 	subnetConfigs map[string]string
-	// bootstrap config for custom networks
-	beaconConfig map[ids.NodeID]netip.AddrPort
 
 	snapshotsDir string
 
@@ -115,28 +107,12 @@ type localNetworkOptions struct {
 	reassignPortsIfUsed bool
 
 	dynamicPorts bool
-
-	networkID uint32
-	// wallet private key used. IF nil, genesis ewoq key will be used
-	walletPrivateKey string
-	// custom network
-	genesisPath string
-	upgradePath string
-
-	// if set, returns 0.0.0.0 IP if httpHost setting is public
-	zeroIP bool
-
-	// do not repeate past node IDs
-	freshStakingIds bool
 }
 
 func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
-	if opts.logRootDir == "" {
-		opts.logRootDir = opts.rootDataDir
-	}
 	logFactory := logging.NewFactory(logging.Config{
 		RotatingWriterConfig: logging.RotatingWriterConfig{
-			Directory: opts.logRootDir,
+			Directory: opts.rootDataDir,
 		},
 		LogLevel:     opts.logLevel,
 		DisplayLevel: opts.logLevel,
@@ -145,6 +121,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return &localNetwork{
 		log:                 logger,
 		execPath:            opts.execPath,
@@ -160,14 +137,7 @@ func newLocalNetwork(opts localNetworkOptions) (*localNetwork, error) {
 // TODO document.
 // Assumes [lc.lock] is held.
 func (lc *localNetwork) createConfig() error {
-	cfg, err := local.NewDefaultConfigNNodes(
-		lc.options.execPath,
-		lc.options.numNodes,
-		lc.options.networkID,
-		lc.options.genesisPath,
-		lc.options.upgradePath,
-		lc.options.beaconConfig,
-	)
+	cfg, err := local.NewDefaultConfigNNodes(lc.options.execPath, lc.options.numNodes)
 	if err != nil {
 		return err
 	}
@@ -189,28 +159,21 @@ func (lc *localNetwork) createConfig() error {
 		cfg.Flags[config.PluginDirKey] = lc.pluginDir
 	}
 
-	for k, v := range lc.options.chainConfigs {
-		ov, ok := cfg.ChainConfigFiles[k]
-		if ok {
-			v, err = utils.CombineJSONs(ov, v)
-			if err != nil {
-				return err
-			}
-		}
-		cfg.ChainConfigFiles[k] = v
-	}
-	for k, v := range lc.options.upgradeConfigs {
-		cfg.UpgradeConfigFiles[k] = v
-	}
-	for k, v := range lc.options.subnetConfigs {
-		cfg.SubnetConfigFiles[k] = v
-	}
-
 	for i := range cfg.NodeConfigs {
 		// NOTE: Naming convention for node names is currently `node` + number, i.e. `node1,node2,node3,...node101`
 		nodeName := fmt.Sprintf("node%d", i+1)
 
 		cfg.NodeConfigs[i].Name = nodeName
+
+		for k, v := range lc.options.chainConfigs {
+			cfg.NodeConfigs[i].ChainConfigFiles[k] = v
+		}
+		for k, v := range lc.options.upgradeConfigs {
+			cfg.NodeConfigs[i].UpgradeConfigFiles[k] = v
+		}
+		for k, v := range lc.options.subnetConfigs {
+			cfg.NodeConfigs[i].SubnetConfigFiles[k] = v
+		}
 
 		if cfg.NodeConfigs[i].Flags == nil {
 			cfg.NodeConfigs[i].Flags = map[string]interface{}{}
@@ -239,11 +202,6 @@ func (lc *localNetwork) createConfig() error {
 		}
 		for k, v := range customNodeConfig {
 			cfg.NodeConfigs[i].Flags[k] = v
-		}
-		if lc.options.freshStakingIds {
-			cfg.NodeConfigs[i].StakingKey = ""
-			cfg.NodeConfigs[i].StakingCert = ""
-			cfg.NodeConfigs[i].StakingSigningKey = ""
 		}
 	}
 
@@ -275,18 +233,7 @@ func (lc *localNetwork) Start(ctx context.Context) error {
 	}
 
 	ux.Print(lc.log, logging.Blue.Wrap(logging.Bold.Wrap("create and run local network")))
-	nw, err := local.NewNetwork(
-		lc.log,
-		lc.cfg,
-		lc.options.rootDataDir,
-		lc.options.logRootDir,
-		lc.options.snapshotsDir,
-		lc.options.reassignPortsIfUsed,
-		lc.options.redirectNodesOutput,
-		lc.options.redirectNodesOutput,
-		lc.options.walletPrivateKey,
-		lc.options.zeroIP,
-	)
+	nw, err := local.NewNetwork(lc.log, lc.cfg, lc.options.rootDataDir, lc.options.snapshotsDir, lc.options.reassignPortsIfUsed)
 	if err != nil {
 		return err
 	}
@@ -346,46 +293,7 @@ func (lc *localNetwork) CreateChains(
 	return chainIDs, nil
 }
 
-func (lc *localNetwork) AddPermissionlessDelegators(ctx context.Context, delegatorSpecs []network.PermissionlessStakerSpec) error {
-	lc.lock.Lock()
-	defer lc.lock.Unlock()
-
-	if len(delegatorSpecs) == 0 {
-		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no delegator specs provided...")))
-		return nil
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	go func(ctx context.Context) {
-		select {
-		case <-lc.stopCh:
-			// The network is stopped; return from method calls below.
-			cancel()
-		case <-ctx.Done():
-			// This method is done. Don't leak [ctx].
-		}
-	}(ctx)
-
-	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
-	}
-
-	err := lc.nw.AddPermissionlessDelegators(ctx, delegatorSpecs)
-	if err != nil {
-		return err
-	}
-
-	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
-	}
-
-	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding permissionless delegators")))
-	return nil
-}
-
-func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validatorSpecs []network.PermissionlessStakerSpec) error {
+func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validatorSpecs []network.PermissionlessValidatorSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -424,46 +332,7 @@ func (lc *localNetwork) AddPermissionlessValidators(ctx context.Context, validat
 	return nil
 }
 
-func (lc *localNetwork) AddSubnetValidators(ctx context.Context, validatorSpecs []network.SubnetValidatorsSpec) error {
-	lc.lock.Lock()
-	defer lc.lock.Unlock()
-
-	if len(validatorSpecs) == 0 {
-		ux.Print(lc.log, logging.Orange.Wrap(logging.Bold.Wrap("no validator specs provided...")))
-		return nil
-	}
-
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	go func(ctx context.Context) {
-		select {
-		case <-lc.stopCh:
-			// The network is stopped; return from method calls below.
-			cancel()
-		case <-ctx.Done():
-			// This method is done. Don't leak [ctx].
-		}
-	}(ctx)
-
-	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
-	}
-
-	err := lc.nw.AddSubnetValidators(ctx, validatorSpecs)
-	if err != nil {
-		return err
-	}
-
-	if err := lc.awaitHealthyAndUpdateNetworkInfo(ctx); err != nil {
-		return err
-	}
-
-	ux.Print(lc.log, logging.Green.Wrap(logging.Bold.Wrap("finished adding subnet validators")))
-	return nil
-}
-
-func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.SubnetValidatorsSpec) error {
+func (lc *localNetwork) RemoveSubnetValidator(ctx context.Context, validatorSpecs []network.RemoveSubnetValidatorSpec) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -584,11 +453,7 @@ func (lc *localNetwork) CreateSubnets(ctx context.Context, subnetSpecs []network
 
 // Loads a snapshot and sets [l.nw] to the network created from the snapshot.
 // Assumes [lc.lock] isn't held.
-func (lc *localNetwork) LoadSnapshot(
-	snapshotName string,
-	snapshotPath string,
-	inPlace bool,
-) error {
+func (lc *localNetwork) LoadSnapshot(snapshotName string) error {
 	lc.lock.Lock()
 	defer lc.lock.Unlock()
 
@@ -603,11 +468,9 @@ func (lc *localNetwork) LoadSnapshot(
 
 	nw, err := local.NewNetworkFromSnapshot(
 		lc.log,
-		lc.options.snapshotsDir,
 		snapshotName,
-		snapshotPath,
 		lc.options.rootDataDir,
-		lc.options.logRootDir,
+		lc.options.snapshotsDir,
 		lc.execPath,
 		lc.pluginDir,
 		lc.options.chainConfigs,
@@ -615,12 +478,6 @@ func (lc *localNetwork) LoadSnapshot(
 		lc.options.subnetConfigs,
 		globalNodeConfig,
 		lc.options.reassignPortsIfUsed,
-		lc.options.redirectNodesOutput,
-		lc.options.redirectNodesOutput,
-		inPlace,
-		lc.options.walletPrivateKey,
-		lc.options.beaconConfig,
-		lc.options.zeroIP,
 	)
 	if err != nil {
 		return err
@@ -644,86 +501,84 @@ func (lc *localNetwork) updateSubnetInfo(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	minAPIPortNumber := uint16(0)
+	minAPIPortNumber := uint16(local.MaxPort)
 	var node node.Node
 	for _, n := range nodes {
 		if n.GetPaused() {
 			continue
 		}
-		if minAPIPortNumber == 0 || n.GetAPIPort() < minAPIPortNumber {
+		if n.GetAPIPort() < minAPIPortNumber {
 			minAPIPortNumber = n.GetAPIPort()
 			node = n
 		}
 	}
 
-	networkID, err := lc.nw.GetNetworkID()
+	blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
 	if err != nil {
 		return err
 	}
-	if !utils.IsPublicNetwork(networkID) {
-		blockchains, err := node.GetAPIClient().PChainAPI().GetBlockchains(ctx)
+
+	for _, blockchain := range blockchains {
+		if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
+			continue
+		}
+		lc.customChainIDToInfo[blockchain.ID] = chainInfo{
+			info: &rpcpb.CustomChainInfo{
+				ChainName: blockchain.Name,
+				VmId:      blockchain.VMID.String(),
+				SubnetId:  blockchain.SubnetID.String(),
+				ChainId:   blockchain.ID.String(),
+			},
+			subnetID:     blockchain.SubnetID,
+			blockchainID: blockchain.ID,
+		}
+	}
+
+	subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	subnetIDList := []string{}
+	for _, subnet := range subnets {
+		if subnet.ID != avago_constants.PlatformChainID {
+			subnetIDList = append(subnetIDList, subnet.ID.String())
+		}
+	}
+
+	for _, subnetIDStr := range subnetIDList {
+		subnetID, err := ids.FromString(subnetIDStr)
 		if err != nil {
 			return err
 		}
-		for _, blockchain := range blockchains {
-			if blockchain.Name == "C-Chain" || blockchain.Name == "X-Chain" {
-				continue
-			}
-			lc.customChainIDToInfo[blockchain.ID] = chainInfo{
-				info: &rpcpb.CustomChainInfo{
-					ChainName: blockchain.Name,
-					VmId:      blockchain.VMID.String(),
-					SubnetId:  blockchain.SubnetID.String(),
-					ChainId:   blockchain.ID.String(),
-				},
-				subnetID:     blockchain.SubnetID,
-				blockchainID: blockchain.ID,
-			}
-		}
-		subnets, err := node.GetAPIClient().PChainAPI().GetSubnets(ctx, nil)
+		vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, subnetID, nil)
 		if err != nil {
 			return err
 		}
-		subnetIDList := []string{}
-		for _, subnet := range subnets {
-			if subnet.ID != avago_constants.PlatformChainID {
-				subnetIDList = append(subnetIDList, subnet.ID.String())
+		var nodeNameList []string
+
+		for _, node := range vdrs {
+			for nodeName, nodeInfo := range lc.nodeInfos {
+				if nodeInfo.Id == node.NodeID.String() {
+					nodeNameList = append(nodeNameList, nodeName)
+				}
 			}
 		}
-		for _, subnetIDStr := range subnetIDList {
-			subnetID, err := ids.FromString(subnetIDStr)
+
+		isElastic := false
+		elasticSubnetID := ids.Empty
+		if _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
+			isElastic = true
+			elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
 			if err != nil {
 				return err
 			}
-			vdrs, err := node.GetAPIClient().PChainAPI().GetCurrentValidators(ctx, subnetID, nil)
-			if err != nil {
-				return err
-			}
-			var nodeNameList []string
+		}
 
-			for _, node := range vdrs {
-				for nodeName, nodeInfo := range lc.nodeInfos {
-					if nodeInfo.Id == node.NodeID.String() {
-						nodeNameList = append(nodeNameList, nodeName)
-					}
-				}
-			}
-
-			isElastic := false
-			elasticSubnetID := ids.Empty
-			if _, _, err := node.GetAPIClient().PChainAPI().GetCurrentSupply(ctx, subnetID); err == nil {
-				isElastic = true
-				elasticSubnetID, err = lc.nw.GetElasticSubnetID(ctx, subnetID)
-				if err != nil {
-					return err
-				}
-			}
-
-			lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{
-				IsElastic:          isElastic,
-				ElasticSubnetId:    elasticSubnetID.String(),
-				SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList},
-			}
+		lc.subnets[subnetIDStr] = &rpcpb.SubnetInfo{
+			IsElastic:          isElastic,
+			ElasticSubnetId:    elasticSubnetID.String(),
+			SubnetParticipants: &rpcpb.SubnetParticipants{NodeNames: nodeNameList},
 		}
 	}
 
@@ -783,12 +638,6 @@ func (lc *localNetwork) awaitHealthyAndUpdateNetworkInfo(ctx context.Context) er
 		return err
 	}
 
-	var err error
-	lc.networkID, err = lc.nw.GetNetworkID()
-	if err != nil {
-		return err
-	}
-
 	nodeNames := maps.Keys(lc.nodeInfos)
 	sort.Strings(nodeNames)
 	for _, nodeName := range nodeNames {
@@ -828,7 +677,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 
 		lc.nodeInfos[name] = &rpcpb.NodeInfo{
 			Name:               node.GetName(),
-			Uri:                node.GetURI(),
+			Uri:                fmt.Sprintf("http://%s:%d", node.GetURL(), node.GetAPIPort()),
 			Id:                 node.GetNodeID().String(),
 			ExecPath:           node.GetBinaryPath(),
 			LogDir:             node.GetLogsDir(),
@@ -852,7 +701,7 @@ func (lc *localNetwork) updateNodeInfo() error {
 
 func (lc *localNetwork) generatePrometheusConf() error {
 	if lc.prometheusConfPath == "" {
-		lc.prometheusConfPath = filepath.Join(lc.nw.GetRootDir(), prometheusConfFname)
+		lc.prometheusConfPath = filepath.Join(lc.options.rootDataDir, prometheusConfFname)
 		lc.log.Info(fmt.Sprintf(logging.Cyan.Wrap("prometheus conf file %s"), lc.prometheusConfPath))
 	}
 	prometheusConf := prometheusConfCommon
@@ -887,12 +736,4 @@ func (lc *localNetwork) Stop(ctx context.Context) {
 			ux.Print(lc.log, logging.Red.Wrap(msg))
 		}
 	})
-}
-
-func (lc *localNetwork) GetWaitForHealthyTimeout() time.Duration {
-	if lc.networkID == avago_constants.FujiID || lc.networkID == 0 {
-		return 6 * time.Hour
-	} else {
-		return 3 * time.Minute
-	}
 }

@@ -71,7 +71,7 @@ func TestCheckExecPath(t *testing.T) {
 		},
 		{
 			execPath:    "",
-			expectedErr: ErrEmptyExecPath,
+			expectedErr: ErrInvalidExecPath,
 		},
 		{
 			execPath:    "invalid",

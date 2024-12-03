@@ -6,27 +6,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"net/netip"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/ids"
-	"github.com/cryft-labs/cryftgo/message"
-	"github.com/cryft-labs/cryftgo/network/peer"
-	"github.com/cryft-labs/cryftgo/network/throttling"
-	"github.com/cryft-labs/cryftgo/snow/networking/router"
-	"github.com/cryft-labs/cryftgo/snow/networking/tracker"
-	"github.com/cryft-labs/cryftgo/snow/uptime"
-	"github.com/cryft-labs/cryftgo/snow/validators"
-	"github.com/cryft-labs/cryftgo/staking"
-	"github.com/cryft-labs/cryftgo/upgrade"
-	"github.com/cryft-labs/cryftgo/utils"
-	"github.com/cryft-labs/cryftgo/utils/constants"
-	"github.com/cryft-labs/cryftgo/utils/crypto/bls"
-	"github.com/cryft-labs/cryftgo/utils/logging"
-	"github.com/cryft-labs/cryftgo/utils/math/meter"
-	"github.com/cryft-labs/cryftgo/utils/resource"
-	"github.com/cryft-labs/cryftgo/utils/set"
-	"github.com/cryft-labs/cryftgo/version"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/message"
+	"github.com/MetalBlockchain/metalgo/network/peer"
+	"github.com/MetalBlockchain/metalgo/network/throttling"
+	"github.com/MetalBlockchain/metalgo/snow/networking/router"
+	"github.com/MetalBlockchain/metalgo/snow/networking/tracker"
+	"github.com/MetalBlockchain/metalgo/snow/validators"
+	"github.com/MetalBlockchain/metalgo/staking"
+	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/ips"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/math/meter"
+	"github.com/MetalBlockchain/metalgo/utils/resource"
+	"github.com/MetalBlockchain/metalgo/utils/set"
+	"github.com/MetalBlockchain/metalgo/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/shubhamdubey02/cryft1-network-runner/api"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
@@ -46,7 +42,7 @@ const (
 	peerStartWaitTimeout        = 30 * time.Second
 )
 
-// Gives access to basic node info, and to most avalanchego apis
+// Gives access to basic node info, and to most metalgo apis
 type localNode struct {
 	// Must be unique across all nodes in this network.
 	name string
@@ -59,8 +55,6 @@ type localNode struct {
 	client api.Client
 	// The process running this node.
 	process NodeProcess
-	// The Public IP
-	publicIP string
 	// The API port
 	apiPort uint16
 	// The P2P (staking) port
@@ -84,13 +78,11 @@ type localNode struct {
 	// signals that the process is stopped but the information is valid
 	// and can be resumed
 	paused bool
-	// if set, returns 0.0.0.0 if httpHost setting is public
-	zeroIP bool
 }
 
 func defaultGetConnFunc(ctx context.Context, node node.Node) (net.Conn, error) {
 	dialer := net.Dialer{}
-	return dialer.DialContext(ctx, constants.NetworkType, net.JoinHostPort(node.GetIP(), fmt.Sprintf("%d", node.GetP2PPort())))
+	return dialer.DialContext(ctx, constants.NetworkType, net.JoinHostPort(node.GetURL(), fmt.Sprintf("%d", node.GetP2PPort())))
 }
 
 // AttachPeer: see Network
@@ -100,21 +92,15 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		return nil, err
 	}
 	tlsConfg := peer.TLSConfig(*tlsCert, nil)
-	clientUpgrader := peer.NewTLSClientUpgrader(
-		tlsConfg,
-		prometheus.NewCounter(prometheus.CounterOpts{}),
-	)
+	clientUpgrader := peer.NewTLSClientUpgrader(tlsConfg)
 	conn, err := node.getConnFunc(ctx, node)
-	if err != nil {
-		return nil, err
-	}
-	peerID, conn, cert, err := clientUpgrader.Upgrade(conn)
 	if err != nil {
 		return nil, err
 	}
 	mc, err := message.NewCreator(
 		logging.NoLog{},
 		prometheus.NewRegistry(),
+		"",
 		constants.DefaultNetworkCompressionType,
 		10*time.Second,
 	)
@@ -123,6 +109,8 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	}
 
 	metrics, err := peer.NewMetrics(
+		logging.NoLog{},
+		"",
 		prometheus.NewRegistry(),
 	)
 	if err != nil {
@@ -137,15 +125,8 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 	if err != nil {
 		return nil, err
 	}
-	signerIP := utils.NewAtomic(netip.AddrPortFrom(
-		netip.IPv6Loopback(),
-		1,
-	))
+	signerIP := ips.NewDynamicIPPort(net.IPv6zero, 0)
 	tls := tlsCert.PrivateKey.(crypto.Signer)
-	bls0, err := bls.NewSecretKey()
-	if err != nil {
-		return nil, err
-	}
 	config := &peer.Config{
 		Metrics:              metrics,
 		MessageCreator:       mc,
@@ -153,25 +134,26 @@ func (node *localNode) AttachPeer(ctx context.Context, router router.InboundHand
 		InboundMsgThrottler:  throttling.NewNoInboundThrottler(),
 		Network:              peer.TestNetwork,
 		Router:               router,
-		VersionCompatibility: version.GetCompatibility(upgrade.InitiallyActiveTime),
+		VersionCompatibility: version.GetCompatibility(node.networkID),
 		MySubnets:            set.Set[ids.ID]{},
-		Beacons:              validators.NewManager(),
+		Beacons:              validators.NewSet(),
 		NetworkID:            node.networkID,
 		PingFrequency:        constants.DefaultPingFrequency,
 		PongTimeout:          constants.DefaultPingPongTimeout,
 		MaxClockDifference:   time.Minute,
 		ResourceTracker:      resourceTracker,
-		UptimeCalculator:     uptime.NoOpCalculator,
-		IPSigner:             peer.NewIPSigner(signerIP, tls, bls0),
-		SupportedACPs:        []uint32{},
-		ObjectedACPs:         []uint32{},
+		IPSigner:             peer.NewIPSigner(signerIP, tls),
+	}
+	_, conn, cert, err := clientUpgrader.Upgrade(conn)
+	if err != nil {
+		return nil, err
 	}
 
 	p := peer.Start(
 		config,
 		conn,
 		cert,
-		peerID,
+		ids.NodeIDFromCert(tlsCert.Leaf),
 		peer.NewBlockingMessageQueue(
 			config.Metrics,
 			logging.NoLog{},
@@ -214,16 +196,11 @@ func (node *localNode) GetAPIClient() api.Client {
 }
 
 // See node.Node
-func (node *localNode) GetIP() string {
-	if node.zeroIP && (node.httpHost == "0.0.0.0" || node.httpHost == ".") {
+func (node *localNode) GetURL() string {
+	if node.httpHost == "0.0.0.0" || node.httpHost == "." {
 		return "0.0.0.0"
 	}
-	return node.publicIP
-}
-
-// See node.Node
-func (node *localNode) GetURI() string {
-	return fmt.Sprintf("http://%s:%d", node.GetIP(), node.GetAPIPort())
+	return "127.0.0.1"
 }
 
 // See node.Node

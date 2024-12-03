@@ -1,10 +1,10 @@
 #!/bin/sh
 set -e
 
-PROJECT_NAME=avalanche-network-runner
-OWNER=ava-labs
-REPO="avalanche-network-runner"
-BINARY=avalanche-network-runner
+PROJECT_NAME=metal-network-runner
+OWNER=MetalBlockchain
+REPO="metal-network-runner"
+BINARY=metal-network-runner
 FORMAT=tar.gz
 PREFIX="$OWNER/$REPO"
 DEFAULT_INSTALL=~/bin

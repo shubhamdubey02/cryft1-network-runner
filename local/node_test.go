@@ -8,21 +8,18 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
-	"net/netip"
 	"testing"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/ids"
-	"github.com/cryft-labs/cryftgo/message"
-	"github.com/cryft-labs/cryftgo/network/peer"
-	"github.com/cryft-labs/cryftgo/staking"
-	"github.com/cryft-labs/cryftgo/upgrade"
-	"github.com/cryft-labs/cryftgo/utils/constants"
-	"github.com/cryft-labs/cryftgo/utils/crypto/bls"
-	"github.com/cryft-labs/cryftgo/utils/ips"
-	"github.com/cryft-labs/cryftgo/utils/logging"
-	"github.com/cryft-labs/cryftgo/utils/wrappers"
-	"github.com/cryft-labs/cryftgo/version"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/message"
+	"github.com/MetalBlockchain/metalgo/network/peer"
+	"github.com/MetalBlockchain/metalgo/staking"
+	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/ips"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/wrappers"
+	"github.com/MetalBlockchain/metalgo/version"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
 	"github.com/stretchr/testify/require"
@@ -32,8 +29,7 @@ const bitmaskCodec = uint32(1 << 31)
 
 func upgradeConn(myTLSCert *tls.Certificate, conn net.Conn) (ids.NodeID, net.Conn, error) {
 	tlsConfig := peer.TLSConfig(*myTLSCert, nil)
-	counter := prometheus.NewCounter(prometheus.CounterOpts{})
-	upgrader := peer.NewTLSServerUpgrader(tlsConfig, counter)
+	upgrader := peer.NewTLSServerUpgrader(tlsConfig)
 	// this will block until the ssh handshake is done
 	peerID, tlsConn, _, err := upgrader.Upgrade(conn)
 	return peerID, tlsConn, err
@@ -71,48 +67,29 @@ func verifyProtocol(
 	// send the peer our version and peerlist
 
 	// create the version message
-	myIP := netip.AddrPortFrom(
-		netip.IPv6Loopback(),
-		1,
-	)
+	myIP := ips.IPPort{
+		IP:   net.IPv6zero,
+		Port: 0,
+	}
 	now := uint64(time.Now().Unix())
 	unsignedIP := peer.UnsignedIP{
-		AddrPort:  myIP,
+		IPPort:    myIP,
 		Timestamp: now,
 	}
 	signer := myTLSCert.PrivateKey.(crypto.Signer)
-	bls0, err := bls.NewSecretKey()
+	signedIP, err := unsignedIP.Sign(signer)
 	if err != nil {
 		errCh <- err
 		return
 	}
-	signedIP, err := unsignedIP.Sign(signer, bls0)
-	if err != nil {
-		errCh <- err
-		return
-	}
-
-	knownPeersFilter, knownPeersSalt := peer.TestNetwork.KnownPeers()
-
-	myVersion := version.GetCompatibility(upgrade.InitiallyActiveTime).Version()
-
-	verMsg, err := mc.Handshake(
+	verMsg, err := mc.Version(
 		constants.MainnetID,
 		now,
 		myIP,
-		myVersion.Name,
-		uint32(myVersion.Major),
-		uint32(myVersion.Minor),
-		uint32(myVersion.Patch),
+		version.CurrentApp.String(),
 		now,
-		signedIP.TLSSignature,
-		signedIP.BLSSignatureBytes,
+		signedIP.Signature,
 		[]ids.ID{},
-		[]uint32{},
-		[]uint32{},
-		knownPeersFilter,
-		knownPeersSalt,
-		false,
 	)
 	if err != nil {
 		errCh <- err
@@ -120,7 +97,7 @@ func verifyProtocol(
 	}
 
 	// create the PeerList message
-	plMsg, err := mc.PeerList([]*ips.ClaimedIPPort{}, true)
+	plMsg, err := mc.PeerList([]ips.ClaimedIPPort{}, true)
 	if err != nil {
 		errCh <- err
 		return
@@ -174,7 +151,7 @@ func readMessage(nodeConn net.Conn, errCh chan error) (*bytes.Buffer, error) {
 	return msgBytes, nil
 }
 
-// sendMessage sends a protocol message to the avalanchego peer
+// sendMessage sends a protocol message to the metalgo peer
 func sendMessage(nodeConn net.Conn, msgBytes []byte, errCh chan error) error {
 	// buffer for message length
 	msgLenBytes := make([]byte, wrappers.IntLen)
@@ -200,7 +177,6 @@ func sendMessage(nodeConn net.Conn, msgBytes []byte, errCh chan error) error {
 // TestAttachPeer tests that we can attach a test peer to a node
 // and that the node receives messages sent through the test peer
 func TestAttachPeer(t *testing.T) {
-	t.Skip()
 	require := require.New(t)
 
 	// [nodeConn] is the connection that [node] uses to read from/write to [peer] (defined below)
@@ -214,8 +190,7 @@ func TestAttachPeer(t *testing.T) {
 	node := localNode{
 		nodeID:    ids.GenerateTestNodeID(),
 		networkID: constants.MainnetID,
-		p2pPort:   1,
-		getConnFunc: func(context.Context, node.Node) (net.Conn, error) {
+		getConnFunc: func(ctx context.Context, n node.Node) (net.Conn, error) {
 			return peerConn, nil
 		},
 		attachedPeers: map[string]peer.Peer{},
@@ -225,6 +200,7 @@ func TestAttachPeer(t *testing.T) {
 	mc, err := message.NewCreator(
 		logging.NoLog{},
 		prometheus.NewRegistry(),
+		"",
 		constants.DefaultNetworkCompressionType,
 		10*time.Second,
 	)
@@ -232,7 +208,7 @@ func TestAttachPeer(t *testing.T) {
 
 	// Expect the peer to send these messages in this order.
 	expectedMessages := []message.Op{
-		message.HandshakeOp,
+		message.VersionOp,
 		message.PeerListOp,
 		message.ChitsOp,
 	}
@@ -249,13 +225,10 @@ func TestAttachPeer(t *testing.T) {
 	require.NoError(err)
 
 	// we'll use a Chits message for testing. (We could use any message type.)
-	preferredID := ids.GenerateTestID()
-	preferredIDAtHeight := ids.GenerateTestID()
-	acceptedID := ids.GenerateTestID()
 	requestID := uint32(42)
 	chainID := constants.PlatformChainID
 	// create the Chits message
-	msg, err := mc.Chits(chainID, requestID, preferredID, preferredIDAtHeight, acceptedID, 0)
+	msg, err := mc.Chits(chainID, requestID, ids.GenerateTestID(), ids.GenerateTestID())
 	require.NoError(err)
 	// send chits to [node]
 	ok := p.Send(context.Background(), msg)

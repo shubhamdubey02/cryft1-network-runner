@@ -5,20 +5,41 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"net/netip"
 	"strconv"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/genesis"
-	"github.com/cryft-labs/cryftgo/ids"
-	"github.com/cryft-labs/cryftgo/utils/constants"
-	"github.com/cryft-labs/cryftgo/utils/formatting/address"
-	"github.com/cryft-labs/cryftgo/utils/units"
+	"github.com/MetalBlockchain/metalgo/genesis"
+	"github.com/MetalBlockchain/metalgo/ids"
+	"github.com/MetalBlockchain/metalgo/utils/constants"
+	"github.com/MetalBlockchain/metalgo/utils/formatting/address"
+	"github.com/MetalBlockchain/metalgo/utils/units"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils"
+	"golang.org/x/exp/maps"
 )
 
-const validatorStake = units.MegaAvax
+var cChainConfig map[string]interface{}
+
+const (
+	validatorStake = units.MegaAvax
+)
+
+func init() {
+	var err error
+	genesisMap, err := LoadLocalGenesis()
+	if err != nil {
+		panic(err)
+	}
+	cChainConfigStr, ok := genesisMap["cChainGenesis"].(string)
+	if !ok {
+		panic(fmt.Errorf("expected cChainGenesis to be a string, but got %T", genesisMap["cChainGenesis"]))
+	}
+	cChainConfigBytes := []byte(cChainConfigStr)
+	err = json.Unmarshal(cChainConfigBytes, &cChainConfig)
+	if err != nil {
+		panic(err)
+	}
+}
 
 // AddrAndBalance holds both an address and its balance
 type AddrAndBalance struct {
@@ -30,8 +51,6 @@ type AddrAndBalance struct {
 type Config struct {
 	// Must not be empty
 	Genesis string `json:"genesis"`
-	// If 0, will use default network ID
-	NetworkID uint32 `json:"networkID"`
 	// May have length 0
 	// (i.e. network may have no nodes on creation.)
 	NodeConfigs []node.Config `json:"nodeConfigs"`
@@ -56,21 +75,22 @@ type Config struct {
 	UpgradeConfigFiles map[string]string `json:"upgradeConfigFiles"`
 	// Subnet config files to use per default, if not specified in node config
 	SubnetConfigFiles map[string]string `json:"subnetConfigFiles"`
-	// Beacon config used for all nodes, can be empty
-	BeaconConfig map[ids.NodeID]netip.AddrPort `json:"beaconConfig"`
-	// Upgrade file used for all nodes, can be empty
-	Upgrade string `json:"upgrade"`
 }
 
 // Validate returns an error if this config is invalid
 func (c *Config) Validate() error {
-	if utils.IsCustomNetwork(c.NetworkID) && len(c.Genesis) == 0 {
+	if len(c.Genesis) == 0 {
 		return errors.New("no genesis given")
+	}
+
+	networkID, err := utils.NetworkIDFromGenesis([]byte(c.Genesis))
+	if err != nil {
+		return fmt.Errorf("couldn't get network ID from genesis: %w", err)
 	}
 
 	var someNodeIsBeacon bool
 	for i, nodeConfig := range c.NodeConfigs {
-		if err := nodeConfig.Validate(c.NetworkID); err != nil {
+		if err := nodeConfig.Validate(networkID); err != nil {
 			var nodeName string
 			if len(nodeConfig.Name) > 0 {
 				nodeName = nodeConfig.Name
@@ -83,7 +103,7 @@ func (c *Config) Validate() error {
 			someNodeIsBeacon = true
 		}
 	}
-	if len(c.NodeConfigs) > 0 && !(utils.IsPublicNetwork(c.NetworkID) || someNodeIsBeacon) {
+	if len(c.NodeConfigs) > 0 && !someNodeIsBeacon {
 		return errors.New("beacon nodes not given")
 	}
 	return nil
@@ -95,15 +115,15 @@ func (c *Config) Validate() error {
 // [cChainBalances] and [xChainBalances].
 // Note that many of the genesis fields (i.e. reward addresses)
 // are randomly generated or hard-coded.
-func NewAvalancheGoGenesis(
+func NewMetalGoGenesis(
 	networkID uint32,
 	xChainBalances []AddrAndBalance,
 	cChainBalances []AddrAndBalance,
 	genesisVdrs []ids.NodeID,
 ) ([]byte, error) {
 	switch networkID {
-	case constants.TestnetID, constants.MainnetID, constants.LocalID:
-		return nil, errors.New("network ID can't be mainnet, testnet or local network ID")
+	case constants.TahoeID, constants.MainnetID, constants.LocalID:
+		return nil, errors.New("network ID can't be mainnet, tahoe or local network ID")
 	}
 	switch {
 	case len(genesisVdrs) == 0:
@@ -167,10 +187,10 @@ func NewAvalancheGoGenesis(
 		}
 	}
 	// avoid modifying original cChainConfig
-	// localCChainConfig := maps.Clone(cChainConfig)
-	// localCChainConfig["alloc"] = cChainAllocs
-	// cChainConfigBytes, _ := json.Marshal(localCChainConfig)
-	// config.CChainGenesis = string(cChainConfigBytes)
+	localCChainConfig := maps.Clone(cChainConfig)
+	localCChainConfig["alloc"] = cChainAllocs
+	cChainConfigBytes, _ := json.Marshal(localCChainConfig)
+	config.CChainGenesis = string(cChainConfigBytes)
 
 	// Set initial validators.
 	// Give staking rewards to random address.
@@ -186,6 +206,6 @@ func NewAvalancheGoGenesis(
 		)
 	}
 
-	// TODO add validation (from AvalancheGo's function validateConfig?)
+	// TODO add validation (from MetalGo's function validateConfig?)
 	return json.Marshal(config)
 }

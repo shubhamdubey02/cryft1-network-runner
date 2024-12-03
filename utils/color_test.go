@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cryft-labs/cryftgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
 )
 
 // TestColorAssignment tests that each color assignment is different and that it "wraps"

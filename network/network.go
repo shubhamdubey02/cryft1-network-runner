@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/ids"
+	"github.com/MetalBlockchain/metalgo/ids"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
 )
 
@@ -15,7 +15,7 @@ var (
 	ErrNodeNotFound = errors.New("node not found in network")
 )
 
-type PermissionlessStakerSpec struct {
+type PermissionlessValidatorSpec struct {
 	SubnetID      string
 	AssetID       string
 	NodeName      string
@@ -47,7 +47,7 @@ type SubnetSpec struct {
 	SubnetConfig []byte
 }
 
-type SubnetValidatorsSpec struct {
+type RemoveSubnetValidatorSpec struct {
 	NodeNames []string
 	SubnetID  string
 }
@@ -63,11 +63,8 @@ type BlockchainSpec struct {
 	PerNodeChainConfig map[string][]byte
 }
 
-// Network is an abstraction of an Avalanche network
+// Network is an abstraction of an Metal network
 type Network interface {
-	// Returns the network ID for the currently running network
-	// Returns ErrStopped if Stop() was previously called.
-	GetNetworkID() (uint32, error)
 	// Returns nil if all the nodes in the network are healthy.
 	// A stopped network is considered unhealthy.
 	// Timeout is given by the context parameter.
@@ -100,9 +97,9 @@ type Network interface {
 	// Save network snapshot
 	// Network is stopped in order to do a safe preservation
 	// Returns the full local path to the snapshot dir
-	SaveSnapshot(context.Context, string, string, bool) (string, error)
+	SaveSnapshot(context.Context, string) (string, error)
 	// Remove network snapshot
-	RemoveSnapshot(string, string) error
+	RemoveSnapshot(string) error
 	// Get name of available snapshots
 	GetSnapshotNames() ([]string, error)
 	// Restart a given node using the same config, optionally changing binary path, plugin dir,
@@ -115,18 +112,10 @@ type Network interface {
 	CreateSubnets(context.Context, []SubnetSpec) ([]ids.ID, error)
 	// Transform subnet into elastic subnet
 	TransformSubnet(context.Context, []ElasticSubnetSpec) ([]ids.ID, []ids.ID, error)
-	// Delegate stake into a permissionless validator in an elastic subnet
-	AddPermissionlessDelegators(context.Context, []PermissionlessStakerSpec) error
 	// Add a validator into an elastic subnet
-	AddPermissionlessValidators(context.Context, []PermissionlessStakerSpec) error
+	AddPermissionlessValidators(context.Context, []PermissionlessValidatorSpec) error
 	// Remove a validator from a subnet
-	RemoveSubnetValidators(context.Context, []SubnetValidatorsSpec) error
-	// Add a validator toa subnet
-	AddSubnetValidators(context.Context, []SubnetValidatorsSpec) error
+	RemoveSubnetValidators(context.Context, []RemoveSubnetValidatorSpec) error
 	// Get the elastic subnet tx id for the given subnet id
 	GetElasticSubnetID(context.Context, ids.ID) (ids.ID, error)
-	// Get the root dir of the Network
-	GetRootDir() string
-	// Get the root log dir of the Network
-	GetLogRootDir() string
 }

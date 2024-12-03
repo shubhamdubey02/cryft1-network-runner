@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/local"
 	"github.com/shubhamdubey02/cryft1-network-runner/network"
 	"go.uber.org/zap"
@@ -41,8 +41,8 @@ func shutdownOnSignal(
 	close(closedOnShutdownChan)
 }
 
-// Shows example usage of the Avalanche Network Runner.
-// Creates a local five node Avalanche network
+// Shows example usage of the Metal Network Runner.
+// Creates a local five node Metal network
 // and waits for all nodes to become healthy.
 // The network runs until the user provides a SIGINT or SIGTERM.
 func main() {
@@ -59,7 +59,7 @@ func main() {
 	if goPath == "" {
 		goPath = build.Default.GOPATH
 	}
-	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/cryft-labs/cryftgo/build/avalanchego")
+	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/MetalBlockchain/metalgo/build/metalgo")
 	if err := run(log, binaryPath); err != nil {
 		log.Fatal("fatal error", zap.Error(err))
 		os.Exit(1)
@@ -68,7 +68,7 @@ func main() {
 
 func run(log logging.Logger, binaryPath string) error {
 	// Create the network
-	nw, err := local.NewDefaultNetwork(log, binaryPath, true, true, true, false)
+	nw, err := local.NewDefaultNetwork(log, binaryPath, true)
 	if err != nil {
 		return err
 	}

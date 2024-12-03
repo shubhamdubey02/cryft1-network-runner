@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/config"
-	"github.com/cryft-labs/cryftgo/staking"
-	"github.com/cryft-labs/cryftgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/config"
+	"github.com/MetalBlockchain/metalgo/staking"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/local"
 	"github.com/shubhamdubey02/cryft1-network-runner/network"
 	"github.com/shubhamdubey02/cryft1-network-runner/network/node"
@@ -44,8 +44,8 @@ func shutdownOnSignal(
 	close(closedOnShutdownChan)
 }
 
-// Shows example usage of the Avalanche Network Runner.
-// Creates a local five node Avalanche network
+// Shows example usage of the Metal Network Runner.
+// Creates a local five node Metal network
 // and waits for all nodes to become healthy.
 // Then, we:
 // * print the names of the nodes
@@ -64,7 +64,7 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/cryft-labs/cryftgo/build/avalanchego")
+	binaryPath := fmt.Sprintf("%s%s", goPath, "/src/github.com/MetalBlockchain/metalgo/build/metalgo")
 	if err := run(log, binaryPath); err != nil {
 		log.Fatal("fatal error", zap.Error(err))
 		os.Exit(1)
@@ -73,7 +73,7 @@ func main() {
 
 func run(log logging.Logger, binaryPath string) error {
 	// Create the network
-	nw, err := local.NewDefaultNetwork(log, binaryPath, true, true, true, false)
+	nw, err := local.NewDefaultNetwork(log, binaryPath, true)
 	if err != nil {
 		return err
 	}

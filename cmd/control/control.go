@@ -8,23 +8,21 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net/netip"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
 
-	"github.com/cryft-labs/cryftgo/utils/logging"
+	"github.com/MetalBlockchain/metalgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/client"
+	"github.com/shubhamdubey02/cryft1-network-runner/local"
 	"github.com/shubhamdubey02/cryft1-network-runner/rpcpb"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils/constants"
 	"github.com/shubhamdubey02/cryft1-network-runner/ux"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-
-	avagoConstants "github.com/cryft-labs/cryftgo/utils/constants"
 )
 
 func init() {
@@ -48,12 +46,12 @@ var (
 func NewCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "control [options]",
-		Short: "Network runner control commands.",
+		Short: "Start a network runner controller.",
 	}
 
 	cmd.PersistentFlags().StringVar(&logLevel, "log-level", logging.Info.String(), "log level")
 	cmd.PersistentFlags().StringVar(&logDir, "log-dir", "", "log directory")
-	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "localhost:8080", "server endpoint")
+	cmd.PersistentFlags().StringVar(&endpoint, "endpoint", "0.0.0.0:8080", "server endpoint")
 	cmd.PersistentFlags().DurationVar(&dialTimeout, "dial-timeout", 10*time.Second, "server dial timeout")
 	cmd.PersistentFlags().DurationVar(&requestTimeout, "request-timeout", 3*time.Minute, "client request timeout")
 
@@ -64,8 +62,6 @@ func NewCommand() *cobra.Command {
 		newCreateSubnetsCommand(),
 		newTransformElasticSubnetsCommand(),
 		newAddPermissionlessValidatorCommand(),
-		newAddPermissionlessDelegatorCommand(),
-		newAddSubnetValidatorsCommand(),
 		newRemoveSubnetValidatorCommand(),
 		newHealthCommand(),
 		newWaitForHealthyCommand(),
@@ -83,40 +79,26 @@ func NewCommand() *cobra.Command {
 		newSaveSnapshotCommand(),
 		newLoadSnapshotCommand(),
 		newRemoveSnapshotCommand(),
-		newListSnapshotsCommand(),
-		newVMIDCommand(),
-		newListSubnetsCommand(),
-		newListBlockchainsCommand(),
-		newListRPCsCommand(),
+		newGetSnapshotNamesCommand(),
 	)
 
 	return cmd
 }
 
 var (
-	avalancheGoBinPath       string
-	numNodes                 uint32
-	pluginDir                string
-	globalNodeConfig         string
-	addNodeConfig            string
-	blockchainSpecsStr       string
-	customNodeConfigs        string
-	rootDataDir              string
-	chainConfigs             string
-	upgradeConfigs           string
-	subnetConfigs            string
-	reassignPortsIfUsed      bool
-	dynamicPorts             bool
-	networkID                uint32
-	force                    bool
-	inPlace                  bool
-	fuji                     bool
-	genesisPath              string
-	bootstrapNodeIDs         []string
-	bootstrapNodeIPPortPairs []string
-	walletPrivateKey         string
-	walletPrivateKeyPath     string
-	upgradePath              string
+	metalGoBinPath      string
+	numNodes            uint32
+	pluginDir           string
+	globalNodeConfig    string
+	addNodeConfig       string
+	blockchainSpecsStr  string
+	customNodeConfigs   string
+	rootDataDir         string
+	chainConfigs        string
+	upgradeConfigs      string
+	subnetConfigs       string
+	reassignPortsIfUsed bool
+	dynamicPorts        bool
 )
 
 func setLogs() error {
@@ -151,7 +133,7 @@ func setLogs() error {
 func newRPCVersionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rpc_version",
-		Short: "Gets RPC server version.",
+		Short: "Requests RPC server version.",
 		RunE:  RPCVersionFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -179,32 +161,20 @@ func RPCVersionFunc(*cobra.Command, []string) error {
 func newStartCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "start [options]",
-		Short: "Starts a network.",
+		Short: "Starts the server.",
 		RunE:  startFunc,
 		Args:  cobra.ExactArgs(0),
 	}
 	cmd.PersistentFlags().StringVar(
-		&avalancheGoBinPath,
-		"avalanchego-path",
+		&metalGoBinPath,
+		"metalgo-path",
 		"",
-		"avalanchego binary path",
-	)
-	cmd.PersistentFlags().Uint32Var(
-		&networkID,
-		"network-id",
-		0,
-		"network id to assign to the network",
+		"metalgo binary path",
 	)
 	cmd.PersistentFlags().Uint32Var(
 		&numNodes,
 		"number-of-nodes",
-		constants.DefaultNumNodes,
-		"number of nodes of the network",
-	)
-	cmd.PersistentFlags().Uint32Var(
-		&numNodes,
-		"num-nodes",
-		constants.DefaultNumNodes,
+		local.DefaultNumNodes,
 		"number of nodes of the network",
 	)
 	cmd.PersistentFlags().StringVar(
@@ -273,117 +243,10 @@ func newStartCommand() *cobra.Command {
 		false,
 		"true to assign dynamic ports",
 	)
-	cmd.PersistentFlags().BoolVar(
-		&fuji,
-		"fuji",
-		false,
-		"true to set all nodes to join fuji network",
-	)
-	cmd.PersistentFlags().StringVar(
-		&genesisPath,
-		"genesis-path",
-		"",
-		"[optional] genesis path",
-	)
-	cmd.PersistentFlags().StringSliceVar(
-		&bootstrapNodeIDs,
-		"bootstrap-node-ids",
-		[]string{},
-		"[optional] bootstrap node ids (comma-separated)",
-	)
-	cmd.PersistentFlags().StringSliceVar(
-		&bootstrapNodeIPPortPairs,
-		"bootstrap-node-ip-ports",
-		[]string{},
-		"[optional] bootstrap node ip:ports (comma-separated)",
-	)
-	cmd.PersistentFlags().StringVar(
-		&walletPrivateKey,
-		"wallet-private-key",
-		"",
-		"[optional] funding wallet private key. Please consider using `wallet-private-key-path` if security is a concern.",
-	)
-	cmd.PersistentFlags().StringVar(
-		&walletPrivateKeyPath,
-		"wallet-private-key-path",
-		"",
-		"[optional] funding wallet private key path",
-	)
-	cmd.PersistentFlags().StringVar(
-		&upgradePath,
-		"upgrade-path",
-		"",
-		"[optional] avalanchego upgrade path",
-	)
+	if err := cmd.MarkPersistentFlagRequired("metalgo-path"); err != nil {
+		panic(err)
+	}
 	return cmd
-}
-
-func setNetworkOptions(opts *[]client.OpOption) error {
-	if upgradePath != "" {
-		*opts = append(*opts, client.WithUpgradePath(upgradePath))
-	}
-
-	if genesisPath != "" {
-		// make sure provided genesis path exists
-		if _, err := os.Stat(genesisPath); err != nil {
-			return fmt.Errorf("genesis path doesn't exist: %w", err)
-		}
-		ux.Print(log, logging.Yellow.Wrap("genesis path provided: %s"), genesisPath)
-		*opts = append(*opts, client.WithGenesisPath(genesisPath))
-
-		genesisBytes, err := os.ReadFile(genesisPath)
-		if err != nil {
-			return fmt.Errorf("failed to read genesis: %w", err)
-		}
-		networkID, err = utils.NetworkIDFromGenesis(genesisBytes)
-		if err != nil {
-			return fmt.Errorf("failed to get network ID from custom networkendpoint: %w", err)
-		}
-	}
-
-	*opts = append(*opts, client.WithNetworkID(networkID))
-
-	if len(bootstrapNodeIDs) != len(bootstrapNodeIPPortPairs) {
-		return fmt.Errorf("invalid number of bootstrap node IDs and IP:port pairs provided")
-	}
-	if len(bootstrapNodeIDs) > 0 {
-		// verify ip:port pairs
-		for _, ipPortPair := range bootstrapNodeIPPortPairs {
-			if _, err := netip.ParseAddrPort(ipPortPair); err != nil {
-				return fmt.Errorf("invalid IP:port pair provided: %w", err)
-			}
-		}
-		ux.Print(log, logging.Yellow.Wrap("network bootstrap node IDs provided: %s"), bootstrapNodeIDs)
-		*opts = append(*opts, client.WithBootstrapNodeIDs(bootstrapNodeIDs))
-		ux.Print(log, logging.Yellow.Wrap("network bootstrap node IP:port pairs provided: %s"), bootstrapNodeIPPortPairs)
-		*opts = append(*opts, client.WithBootstrapNodeIPPortPairs(bootstrapNodeIPPortPairs))
-	}
-
-	return nil
-}
-
-func setWalletPrivateKeyOptions(opts *[]client.OpOption) error {
-	if walletPrivateKeyPath != "" && walletPrivateKey != "" {
-		return fmt.Errorf("only one of wallet-private-key and wallet-private-key-path can be provided")
-	}
-	if walletPrivateKey != "" {
-		ux.Print(log, logging.Yellow.Wrap("funding wallet private key provided: %s"), walletPrivateKey)
-		*opts = append(*opts, client.WithWalletPrivateKey(walletPrivateKey))
-	}
-	if walletPrivateKeyPath != "" {
-		ux.Print(log, logging.Yellow.Wrap("funding wallet private key path provided: %s"), walletPrivateKeyPath)
-		// validate if it's a valid private key
-		if _, err := os.Stat(walletPrivateKey); err != nil {
-			return fmt.Errorf("wallet private key doesn't exist: %w", err)
-		}
-		// read the private key
-		keyBytes, err := os.ReadFile(walletPrivateKey)
-		if err != nil {
-			return fmt.Errorf("failed to read  wallet private key: %w", err)
-		}
-		*opts = append(*opts, client.WithWalletPrivateKey(string(keyBytes)))
-	}
-	return nil
 }
 
 func startFunc(*cobra.Command, []string) error {
@@ -393,11 +256,6 @@ func startFunc(*cobra.Command, []string) error {
 	}
 	defer cli.Close()
 
-	if fuji {
-		networkID = avagoConstants.FujiID
-		requestTimeout = 5 * time.Hour // increase timeout for fuji network
-		ux.Print(log, logging.Yellow.Wrap("setting request timeout to "+requestTimeout.String()))
-	}
 	opts := []client.OpOption{
 		client.WithNumNodes(numNodes),
 		client.WithPluginDir(pluginDir),
@@ -405,14 +263,6 @@ func startFunc(*cobra.Command, []string) error {
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
 		client.WithDynamicPorts(dynamicPorts),
-	}
-
-	if err := setWalletPrivateKeyOptions(&opts); err != nil {
-		return err
-	}
-
-	if err := setNetworkOptions(&opts); err != nil {
-		return err
 	}
 
 	if globalNodeConfig != "" {
@@ -467,7 +317,7 @@ func startFunc(*cobra.Command, []string) error {
 
 	info, err := cli.Start(
 		ctx,
-		avalancheGoBinPath,
+		metalGoBinPath,
 		opts...,
 	)
 	if err != nil {
@@ -481,7 +331,7 @@ func startFunc(*cobra.Command, []string) error {
 func newCreateBlockchainsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create-blockchains blockchain-specs [options]",
-		Short: "Creates blockchains.",
+		Short: "Create blockchains.",
 		RunE:  createBlockchainsFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -519,7 +369,7 @@ func createBlockchainsFunc(_ *cobra.Command, args []string) error {
 func newCreateSubnetsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create-subnets [options]",
-		Short: "Creates subnets.",
+		Short: "Create subnets.",
 		RunE:  createSubnetsFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -557,18 +407,8 @@ func createSubnetsFunc(_ *cobra.Command, args []string) error {
 func newTransformElasticSubnetsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "elastic-subnets elastic_subnets_specs [options]",
-		Short: "Transforms subnets to elastic subnets.",
+		Short: "Transform subnets to elastic subnets.",
 		RunE:  transformElasticSubnetsFunc,
-		Args:  cobra.ExactArgs(1),
-	}
-	return cmd
-}
-
-func newAddPermissionlessDelegatorCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "add-permissionless-delegator permissionlessValidatorSpecs [options]",
-		Short: "Delegates to a permissionless validator in an elastic subnet",
-		RunE:  addPermissionlessDelegatorFunc,
 		Args:  cobra.ExactArgs(1),
 	}
 	return cmd
@@ -577,18 +417,8 @@ func newAddPermissionlessDelegatorCommand() *cobra.Command {
 func newAddPermissionlessValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-permissionless-validator permissionlessValidatorSpecs [options]",
-		Short: "Adds a permissionless validator to elastic subnets.",
+		Short: "Add permissionless validator to elastic subnets.",
 		RunE:  addPermissionlessValidatorFunc,
-		Args:  cobra.ExactArgs(1),
-	}
-	return cmd
-}
-
-func newAddSubnetValidatorsCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "add-subnet-validators validatorsSpec [options]",
-		Short: "Adds subnet validators",
-		RunE:  addSubnetValidatorsFunc,
 		Args:  cobra.ExactArgs(1),
 	}
 	return cmd
@@ -597,7 +427,7 @@ func newAddSubnetValidatorsCommand() *cobra.Command {
 func newRemoveSubnetValidatorCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove-subnet-validator removeValidatorSpec [options]",
-		Short: "Removes a subnet validator",
+		Short: "Remove subnet validator",
 		RunE:  removeSubnetValidatorFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -632,34 +462,6 @@ func transformElasticSubnetsFunc(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-func addPermissionlessDelegatorFunc(_ *cobra.Command, args []string) error {
-	cli, err := newClient()
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
-
-	delegatorSpecsStr := args[0]
-
-	delegatorSpecs := []*rpcpb.PermissionlessStakerSpec{}
-	if err := json.Unmarshal([]byte(delegatorSpecsStr), &delegatorSpecs); err != nil {
-		return err
-	}
-
-	ctx := getAsyncContext()
-
-	info, err := cli.AddPermissionlessDelegator(
-		ctx,
-		delegatorSpecs,
-	)
-	if err != nil {
-		return err
-	}
-
-	ux.Print(log, logging.Green.Wrap("add-permissionless-delegator response: %+v"), info)
-	return nil
-}
-
 func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 	cli, err := newClient()
 	if err != nil {
@@ -667,10 +469,10 @@ func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	validatorSpecsStr := args[0]
+	validatorSpecStr := args[0]
 
-	validatorSpecs := []*rpcpb.PermissionlessStakerSpec{}
-	if err := json.Unmarshal([]byte(validatorSpecsStr), &validatorSpecs); err != nil {
+	validatorSpec := []*rpcpb.PermissionlessValidatorSpec{}
+	if err := json.Unmarshal([]byte(validatorSpecStr), &validatorSpec); err != nil {
 		return err
 	}
 
@@ -678,41 +480,13 @@ func addPermissionlessValidatorFunc(_ *cobra.Command, args []string) error {
 
 	info, err := cli.AddPermissionlessValidator(
 		ctx,
-		validatorSpecs,
+		validatorSpec,
 	)
 	if err != nil {
 		return err
 	}
 
 	ux.Print(log, logging.Green.Wrap("add-permissionless-validator response: %+v"), info)
-	return nil
-}
-
-func addSubnetValidatorsFunc(_ *cobra.Command, args []string) error {
-	cli, err := newClient()
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
-
-	validatorSpecsStr := args[0]
-
-	validatorSpecs := []*rpcpb.SubnetValidatorsSpec{}
-	if err := json.Unmarshal([]byte(validatorSpecsStr), &validatorSpecs); err != nil {
-		return err
-	}
-
-	ctx := getAsyncContext()
-
-	info, err := cli.AddSubnetValidators(
-		ctx,
-		validatorSpecs,
-	)
-	if err != nil {
-		return err
-	}
-
-	ux.Print(log, logging.Green.Wrap("add-subnet-validators response: %+v"), info)
 	return nil
 }
 
@@ -723,10 +497,10 @@ func removeSubnetValidatorFunc(_ *cobra.Command, args []string) error {
 	}
 	defer cli.Close()
 
-	validatorSpecsStr := args[0]
+	validatorSpecStr := args[0]
 
-	validatorSpecs := []*rpcpb.RemoveSubnetValidatorSpec{}
-	if err := json.Unmarshal([]byte(validatorSpecsStr), &validatorSpecs); err != nil {
+	validatorSpec := []*rpcpb.RemoveSubnetValidatorSpec{}
+	if err := json.Unmarshal([]byte(validatorSpecStr), &validatorSpec); err != nil {
 		return err
 	}
 
@@ -734,7 +508,7 @@ func removeSubnetValidatorFunc(_ *cobra.Command, args []string) error {
 
 	info, err := cli.RemoveSubnetValidator(
 		ctx,
-		validatorSpecs,
+		validatorSpec,
 	)
 	if err != nil {
 		return err
@@ -747,7 +521,7 @@ func removeSubnetValidatorFunc(_ *cobra.Command, args []string) error {
 func newHealthCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "health [options]",
-		Short: "Waits until local cluster is ready.",
+		Short: "Requests server health.",
 		RunE:  healthFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -775,7 +549,7 @@ func healthFunc(*cobra.Command, []string) error {
 func newWaitForHealthyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "wait-for-healthy [options]",
-		Short: "Waits until local cluster and custom vms are ready.",
+		Short: "Wait until local cluster + custom vms are ready.",
 		RunE:  waitForHealthy,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -803,7 +577,7 @@ func waitForHealthy(*cobra.Command, []string) error {
 func newURIsCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "uris [options]",
-		Short: "Lists network uris.",
+		Short: "Requests server uris.",
 		RunE:  urisFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -831,7 +605,7 @@ func urisFunc(*cobra.Command, []string) error {
 func newStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "status [options]",
-		Short: "Gets network status.",
+		Short: "Requests server status.",
 		RunE:  statusFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -861,7 +635,7 @@ var pushInterval time.Duration
 func newStreamStatusCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stream-status [options]",
-		Short: "Gets a stream of network status.",
+		Short: "Requests server bootstrap status.",
 		RunE:  streamStatusFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -1002,15 +776,15 @@ func resumeNodeFunc(_ *cobra.Command, args []string) error {
 func newAddNodeCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "add-node node-name [options]",
-		Short: "Adds a new node to the network",
+		Short: "Add a new node to the network",
 		RunE:  addNodeFunc,
 		Args:  cobra.ExactArgs(1),
 	}
 	cmd.PersistentFlags().StringVar(
-		&avalancheGoBinPath,
-		"avalanchego-path",
+		&metalGoBinPath,
+		"metalgo-path",
 		"",
-		"avalanchego binary path",
+		"metalgo binary path",
 	)
 	cmd.PersistentFlags().StringVar(
 		&addNodeConfig,
@@ -1094,7 +868,7 @@ func addNodeFunc(_ *cobra.Command, args []string) error {
 	info, err := cli.AddNode(
 		ctx,
 		nodeName,
-		avalancheGoBinPath,
+		metalGoBinPath,
 		opts...,
 	)
 	cancel()
@@ -1114,10 +888,10 @@ func newRestartNodeCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 	cmd.PersistentFlags().StringVar(
-		&avalancheGoBinPath,
-		"avalanchego-path",
+		&metalGoBinPath,
+		"metalgo-path",
 		"",
-		"avalanchego binary path",
+		"metalgo binary path",
 	)
 	cmd.PersistentFlags().StringVar(
 		&trackSubnets,
@@ -1162,7 +936,7 @@ func restartNodeFunc(_ *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	opts := []client.OpOption{
-		client.WithExecPath(avalancheGoBinPath),
+		client.WithExecPath(metalGoBinPath),
 		client.WithPluginDir(pluginDir),
 		client.WithTrackSubnets(trackSubnets),
 	}
@@ -1306,7 +1080,7 @@ func sendOutboundMessageFunc(_ *cobra.Command, args []string) error {
 func newStopCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stop [options]",
-		Short: "Stops the network.",
+		Short: "Requests server stop.",
 		RunE:  stopFunc,
 		Args:  cobra.ExactArgs(0),
 	}
@@ -1334,16 +1108,10 @@ func stopFunc(*cobra.Command, []string) error {
 func newSaveSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "save-snapshot snapshot-name",
-		Short: "Saves a network snapshot.",
+		Short: "Requests server to save network snapshot.",
 		RunE:  saveSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
-	cmd.PersistentFlags().BoolVar(
-		&force,
-		"force",
-		false,
-		"overwrite snapshot if it already exists",
-	)
 	return cmd
 }
 
@@ -1355,7 +1123,7 @@ func saveSnapshotFunc(_ *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.SaveSnapshot(ctx, args[0], force)
+	resp, err := cli.SaveSnapshot(ctx, args[0])
 	cancel()
 	if err != nil {
 		return err
@@ -1368,15 +1136,15 @@ func saveSnapshotFunc(_ *cobra.Command, args []string) error {
 func newLoadSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "load-snapshot snapshot-name",
-		Short: "Loads a network snapshot.",
+		Short: "Requests server to load network snapshot.",
 		RunE:  loadSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
 	cmd.PersistentFlags().StringVar(
-		&avalancheGoBinPath,
-		"avalanchego-path",
+		&metalGoBinPath,
+		"metalgo-path",
 		"",
-		"avalanchego binary path",
+		"metalgo binary path",
 	)
 	cmd.PersistentFlags().StringVar(
 		&pluginDir,
@@ -1420,24 +1188,6 @@ func newLoadSnapshotCommand() *cobra.Command {
 		false,
 		"true to reassign snapshot ports if already taken",
 	)
-	cmd.PersistentFlags().BoolVar(
-		&inPlace,
-		"in-place",
-		false,
-		"load snapshot in place, so as it always auto save",
-	)
-	cmd.PersistentFlags().StringVar(
-		&walletPrivateKey,
-		"wallet-private-key",
-		"",
-		"[optional] funding wallet private key. Please consider using `wallet-private-key-path` if security is a concern.",
-	)
-	cmd.PersistentFlags().StringVar(
-		&walletPrivateKeyPath,
-		"wallet-private-key-path",
-		"",
-		"[optional] funding wallet private key path",
-	)
 	return cmd
 }
 
@@ -1449,14 +1199,10 @@ func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 	defer cli.Close()
 
 	opts := []client.OpOption{
-		client.WithExecPath(avalancheGoBinPath),
+		client.WithExecPath(metalGoBinPath),
 		client.WithPluginDir(pluginDir),
 		client.WithRootDataDir(rootDataDir),
 		client.WithReassignPortsIfUsed(reassignPortsIfUsed),
-	}
-
-	if err := setWalletPrivateKeyOptions(&opts); err != nil {
-		return err
 	}
 
 	if chainConfigs != "" {
@@ -1494,7 +1240,7 @@ func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 
 	ctx := getAsyncContext()
 
-	resp, err := cli.LoadSnapshot(ctx, args[0], inPlace, opts...)
+	resp, err := cli.LoadSnapshot(ctx, args[0], opts...)
 	if err != nil {
 		return err
 	}
@@ -1506,7 +1252,7 @@ func loadSnapshotFunc(_ *cobra.Command, args []string) error {
 func newRemoveSnapshotCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "remove-snapshot snapshot-name",
-		Short: "Removes a network snapshot.",
+		Short: "Requests server to remove network snapshot.",
 		RunE:  removeSnapshotFunc,
 		Args:  cobra.ExactArgs(1),
 	}
@@ -1531,16 +1277,16 @@ func removeSnapshotFunc(_ *cobra.Command, args []string) error {
 	return nil
 }
 
-func newListSnapshotsCommand() *cobra.Command {
+func newGetSnapshotNamesCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "list-snapshots [options]",
-		Short: "Lists available snapshots.",
-		RunE:  listSnapshotsFunc,
+		Use:   "get-snapshot-names [options]",
+		Short: "Requests server to get list of snapshot.",
+		RunE:  getSnapshotNamesFunc,
 		Args:  cobra.ExactArgs(0),
 	}
 }
 
-func listSnapshotsFunc(*cobra.Command, []string) error {
+func getSnapshotNamesFunc(*cobra.Command, []string) error {
 	cli, err := newClient()
 	if err != nil {
 		return err
@@ -1548,144 +1294,13 @@ func listSnapshotsFunc(*cobra.Command, []string) error {
 	defer cli.Close()
 
 	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	snapshotNames, err := cli.ListSnapshots(ctx)
+	snapshotNames, err := cli.GetSnapshotNames(ctx)
 	cancel()
 	if err != nil {
 		return err
 	}
 
 	ux.Print(log, logging.Green.Wrap("Snapshots: %s"), snapshotNames)
-	return nil
-}
-
-func newVMIDCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "vmid vm-name",
-		Short: "Returns the vm id associated to the given vm name.",
-		RunE:  VMIDFunc,
-		Args:  cobra.ExactArgs(1),
-	}
-	return cmd
-}
-
-func VMIDFunc(_ *cobra.Command, args []string) error {
-	vmName := args[0]
-	cli, err := newClient()
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	vmID, err := cli.VMID(ctx, vmName)
-	cancel()
-	if err != nil {
-		return err
-	}
-
-	ux.Print(log, logging.Green.Wrap("VMID: %s"), vmID)
-	return nil
-}
-
-func newListSubnetsCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list-subnets",
-		Short: "Lists all subnet ids of the network.",
-		RunE:  listSubnetsFunc,
-		Args:  cobra.ExactArgs(0),
-	}
-	return cmd
-}
-
-func listSubnetsFunc(*cobra.Command, []string) error {
-	cli, err := newClient()
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	subnetIDs, err := cli.ListSubnets(ctx)
-	cancel()
-	if err != nil {
-		return err
-	}
-
-	for _, subnetID := range subnetIDs {
-		ux.Print(log, logging.Green.Wrap("Subnet ID: %s"), subnetID)
-	}
-
-	return nil
-}
-
-func newListBlockchainsCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list-blockchains",
-		Short: "Lists all blockchain ids of the network.",
-		RunE:  listBlockchainsFunc,
-		Args:  cobra.ExactArgs(0),
-	}
-	return cmd
-}
-
-func listBlockchainsFunc(*cobra.Command, []string) error {
-	cli, err := newClient()
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.ListBlockchains(ctx)
-	cancel()
-	if err != nil {
-		return err
-	}
-
-	ux.Print(log, "")
-	for _, blockchain := range resp {
-		ux.Print(log, logging.Green.Wrap("Blockchain ID: %s"), blockchain.ChainId)
-		ux.Print(log, logging.Green.Wrap("    VM Name: %s"), blockchain.ChainName)
-		ux.Print(log, logging.Green.Wrap("    VM ID: %s"), blockchain.VmId)
-		ux.Print(log, logging.Green.Wrap("    Subnet ID: %s"), blockchain.SubnetId)
-		ux.Print(log, "")
-	}
-
-	return nil
-}
-
-func newListRPCsCommand() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list-rpcs",
-		Short: "Lists rpcs for all blockchain of the network.",
-		RunE:  listRPCsFunc,
-		Args:  cobra.ExactArgs(0),
-	}
-	return cmd
-}
-
-func listRPCsFunc(*cobra.Command, []string) error {
-	cli, err := newClient()
-	if err != nil {
-		return err
-	}
-	defer cli.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), requestTimeout)
-	resp, err := cli.ListRpcs(ctx)
-	cancel()
-	if err != nil {
-		return err
-	}
-
-	ux.Print(log, "")
-	for _, blockchainRpcs := range resp {
-		ux.Print(log, logging.Green.Wrap("Blockchain ID: %s"), blockchainRpcs.BlockchainId)
-		for _, rpc := range blockchainRpcs.Rpcs {
-			ux.Print(log, logging.Green.Wrap("    %s: %s"), rpc.NodeName, rpc.Rpc)
-		}
-		ux.Print(log, "")
-	}
 	return nil
 }
 
