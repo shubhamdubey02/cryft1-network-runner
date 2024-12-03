@@ -17,8 +17,8 @@ import (
 
 	"github.com/cryft-labs/cryftgo/vms/platformvm/reward"
 
+	"github.com/cryft-labs/cryftgo/tree/main/vms/components"
 	"github.com/cryft-labs/cryftgo/vms/avm"
-	"github.com/cryft-labs/cryftgo/vms/components/avax"
 	"github.com/cryft-labs/cryftgo/vms/components/verify"
 	"github.com/cryft-labs/cryftgo/wallet/chain/x"
 	xbuilder "github.com/cryft-labs/cryftgo/wallet/chain/x/builder"
