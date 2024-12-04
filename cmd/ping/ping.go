@@ -7,7 +7,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/MetalBlockchain/metalgo/utils/logging"
+	"github.com/cryft-labs/cryftgo/utils/logging"
 	"github.com/shubhamdubey02/cryft1-network-runner/client"
 	"github.com/shubhamdubey02/cryft1-network-runner/utils/constants"
 	"github.com/shubhamdubey02/cryft1-network-runner/ux"

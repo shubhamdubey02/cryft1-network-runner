@@ -8,7 +8,7 @@ import (
 
 	common "github.com/ethereum/go-ethereum/common"
 
-	ids "github.com/MetalBlockchain/metalgo/ids"
+	ids "github.com/cryft-labs/cryftgo/ids"
 
 	interfaces "github.com/cryft-labs/coreth/interfaces"
 
