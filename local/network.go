@@ -72,7 +72,7 @@ var (
 	chainConfigSubDir  = "chainConfigs"
 	subnetConfigSubDir = "subnetConfigs"
 
-	snapshotsRelPath = filepath.Join(".metal-network-runner", "snapshots")
+	snapshotsRelPath = filepath.Join(".cryft-network-runner", "snapshots")
 
 	ErrSnapshotNotFound = errors.New("snapshot not found")
 )

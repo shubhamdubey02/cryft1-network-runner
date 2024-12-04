@@ -1,10 +1,10 @@
 #!/bin/sh
 set -e
 
-PROJECT_NAME=metal-network-runner
+PROJECT_NAME=cryft-network-runner
 OWNER=MetalBlockchain
-REPO="metal-network-runner"
-BINARY=metal-network-runner
+REPO="cryft-network-runner"
+BINARY=cryft-network-runner
 FORMAT=tar.gz
 PREFIX="$OWNER/$REPO"
 DEFAULT_INSTALL=~/bin

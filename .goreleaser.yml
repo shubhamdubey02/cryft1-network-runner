@@ -1,8 +1,8 @@
 # ref. https://goreleaser.com/customization/build/
 builds:
-  - id: metal-network-runner
+  - id: cryft-network-runner
     main: ./main.go
-    binary: metal-network-runner
+    binary: cryft-network-runner
     flags:
       - -v
     ldflags:
@@ -35,4 +35,4 @@ release:
   # Default is extracted from the origin remote URL or empty if its private hosted.
   github:
     owner: MetalBlockchain
-    name: metal-network-runner
+    name: cryft-network-runner

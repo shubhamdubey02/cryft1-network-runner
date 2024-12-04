@@ -1148,7 +1148,7 @@ func TestWriteFiles(t *testing.T) {
 	chainConfigFiles := map[string]string{
 		"C": "c-chain config file",
 	}
-	tmpDir, err := os.MkdirTemp("", "metal-network-runner-tests-*")
+	tmpDir, err := os.MkdirTemp("", "cryft-network-runner-tests-*")
 	if err != nil {
 		t.Fatal(err)
 	}

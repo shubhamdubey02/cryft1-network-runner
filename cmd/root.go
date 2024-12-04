@@ -16,8 +16,8 @@ import (
 var Version = ""
 
 var rootCmd = &cobra.Command{
-	Use:        "metal-network-runner",
-	Short:      "metal-network-runner commands",
+	Use:        "cryft-network-runner",
+	Short:      "cryft-network-runner commands",
 	SuggestFor: []string{"network-runner"},
 	Version:    Version,
 }
@@ -36,7 +36,7 @@ func init() {
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "metal-network-runner failed %v\n", err)
+		fmt.Fprintf(os.Stderr, "cryft-network-runner failed %v\n", err)
 		os.Exit(1)
 	}
 	os.Exit(0)

@@ -151,10 +151,10 @@ ACK_GINKGO_RC=true ginkgo build ./tests/e2e
 snapshots_dir=/tmp/network-runner-root-data/snapshots-e2e/
 rm -rf $snapshots_dir
 
-killall metal-network-runner || true
+killall cryft-network-runner || true
 
 echo "launch local test cluster in the background"
-bin/metal-network-runner \
+bin/cryft-network-runner \
 server \
 --log-level debug \
 --port=":8080" \
