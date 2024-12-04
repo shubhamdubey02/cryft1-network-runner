@@ -8,7 +8,7 @@ import (
 
 	avm "github.com/MetalBlockchain/metalgo/vms/avm"
 
-	evm "github.com/MetalBlockchain/coreth/plugin/evm"
+	evm "github.com/cryft-labs/coreth/plugin/evm"
 
 	health "github.com/MetalBlockchain/metalgo/api/health"
 
