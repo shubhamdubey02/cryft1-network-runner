@@ -3,7 +3,7 @@ module github.com/shubhamdubey02/cryft1-network-runner
 go 1.21.10
 
 require (
-	github.com/cryft-labs/cryftgo v1.0.0-rc
+	github.com/ixAnkit/cryftgo v1.0.0-rc
 	github.com/cryft-labs/coreth v0.1.0-rc
 	github.com/ethereum/go-ethereum v1.13.8
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.16.0
@@ -46,7 +46,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20231025140028-3c0104f4b233 // indirect
 	github.com/crate-crypto/go-kzg-4844 v0.7.0 // indirect
-	github.com/cryft-labs/cryftgo v1.0.0-rc // indirect
+	github.com/ixAnkit/cryftgo v1.0.0-rc // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
