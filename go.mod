@@ -5,8 +5,8 @@ go 1.22.8
 toolchain go1.22.10
 
 require (
-	github.com/MetalBlockchain/coreth v0.13.2-rc.3
-	github.com/MetalBlockchain/metalgo v1.11.3-rc.1
+	github.com/cryft-labs/coreth v0.1.0-rc
+	github.com/cryft-labs/cryftgo v1.0.0-rc
 	github.com/ava-labs/avalanche-network-runner v1.8.3
 	github.com/ava-labs/avalanchego v1.12.0
 	github.com/ethereum/go-ethereum v1.13.14
